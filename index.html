@@ -1,0 +1,671 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Contrôle Redal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: single-column phone app, bottom tabs (Facture, Suivi, Simuler). Meter gauges and odometer drums are the visual signature. */
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --fg:#13202b; --muted:#566676; --line:#dbe2e8; --soft:#e8eef2;
+  --eau:#0b78a3; --elec:#9a5b00; --tax:#6b4fb3; --fixe:#7a8794;
+  --ok:#17724a; --warn:#9a5b00; --bad:#b3261e;
+  --ink:#14344d; --on-ink:#ffffff;
+  --f-body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-disp:'Bricolage Grotesque','Figtree',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e151c; --surface:#16202a; --fg:#e7eef4; --muted:#93a4b3; --line:#26343f; --soft:#1e2b36;
+  --eau:#52bde8; --elec:#f2ac45; --tax:#a98ef0; --fixe:#8a9aa8;
+  --ok:#4cc08b; --warn:#f2ac45; --bad:#ff8077;
+  --ink:#e7eef4; --on-ink:#0e151c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e151c; --surface:#16202a; --fg:#e7eef4; --muted:#93a4b3; --line:#26343f; --soft:#1e2b36;
+  --eau:#52bde8; --elec:#f2ac45; --tax:#a98ef0; --fixe:#8a9aa8;
+  --ok:#4cc08b; --warn:#f2ac45; --bad:#ff8077;
+  --ink:#e7eef4; --on-ink:#0e151c; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--f-body);-webkit-text-size-adjust:100%}
+.app{max-width:560px;margin:0 auto;padding-block:16px calc(92px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font:700 22px/1.15 var(--f-disp);letter-spacing:-.01em;margin:0}
+h2,.lbl{font:600 12px/1.2 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+p{margin:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.top p{color:var(--muted);font-size:13px;margin-top:2px}
+.sync{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding-top:5px}
+.sync::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--fixe)}
+.sync.ok::before{background:var(--ok)}
+.view{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.amount{font:700 48px/1 var(--f-disp);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 8px}
+.amount span{font-size:20px;color:var(--muted);font-weight:500}
+.meta{color:var(--muted);font-size:13px}
+.payrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.pay{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.pay button{padding:9px 14px;background:transparent;border:0;font:600 13px var(--f-body);color:var(--muted);cursor:pointer;min-height:38px}
+.pay button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.bar{display:flex;height:14px;gap:2px;border-radius:7px;overflow:hidden;margin-bottom:14px}
+.bar span{min-width:3px}
+.legend{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.legend li{display:grid;grid-template-columns:12px 1fr auto auto;gap:10px;align-items:center;font-size:14px}
+.legend i{width:12px;height:12px;border-radius:3px}
+.legend .pc{color:var(--muted);font-size:12px;min-width:44px;text-align:right}
+.num,.legend b{font-variant-numeric:tabular-nums}
+.svc-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:2px}
+.svc-h h2{margin:0}
+.svc-sub{color:var(--muted);font-size:13px;margin-bottom:10px}
+.svc-tot{font:700 20px var(--f-disp);font-variant-numeric:tabular-nums}
+table.lines{width:100%;border-collapse:collapse;font-size:14px}
+table.lines td{padding:8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+table.lines td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:12px}
+table.lines small{display:block;color:var(--muted);font:500 12px var(--f-mono)}
+table.lines tr.sum td{border-bottom:0;font-weight:700;padding-top:10px}
+.note{color:var(--muted);font-size:13px;margin-top:10px}
+.watch{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.watch li{display:grid;gap:4px;font-size:14px}
+.chip{display:inline-flex;align-items:center;width:max-content;max-width:100%;font:600 12px/1.2 var(--f-body);padding:5px 10px;border-radius:999px;color:var(--c,var(--muted));background:color-mix(in srgb,var(--c,var(--muted)) 14%,var(--surface))}
+.chip.ok{--c:var(--ok)}.chip.warn{--c:var(--warn)}.chip.bad{--c:var(--bad)}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.checks li{display:grid;grid-template-columns:22px 1fr;gap:10px;font-size:14px}
+.checks svg{width:22px;height:22px;color:var(--ok)}
+.checks .bad svg{color:var(--bad)}
+.checks small{display:block;color:var(--muted);font-size:12.5px}
+
+/* forms */
+.field{display:grid;gap:6px;min-width:0}
+.field label{font-size:13px;font-weight:600}
+input[type=date],input[type=number]{width:100%;min-height:46px;font:500 16px var(--f-body);padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font-variant-numeric:tabular-nums}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form{display:grid;gap:14px}
+.btn{min-height:46px;border:0;border-radius:12px;background:var(--ink);color:var(--on-ink);font:600 15px var(--f-body);padding:0 18px;cursor:pointer;width:100%}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.sm{min-height:36px;width:auto;font-size:13px;padding:0 12px}
+.msg{min-height:20px;font-size:13px;color:var(--muted)}
+.msg.err{color:var(--bad)}.msg.good{color:var(--ok)}
+:focus-visible{outline:2px solid var(--eau);outline-offset:2px}
+
+/* meters */
+.drums{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:10px 0;border-bottom:1px solid var(--line)}
+.drums:last-child{border-bottom:0;padding-bottom:0}
+.drums .who{font-weight:600;font-size:14px}
+.drums .src{color:var(--muted);font-size:12.5px;display:block;font-weight:400}
+.drum{display:inline-flex;gap:2px}
+.drum i{font:600 22px/1 var(--f-mono);font-style:normal;background:var(--ink);color:var(--on-ink);border-radius:3px;padding:7px 6px}
+.drum.eau i:nth-last-child(-n+3){background:var(--eau);color:#fff}
+.drum.elec i:last-child{background:var(--elec);color:#fff}
+.mhead{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.big{font:700 34px/1.1 var(--f-disp);font-variant-numeric:tabular-nums;margin:2px 0 0}
+.big small{font:500 14px var(--f-body);color:var(--muted)}
+.gauge{position:relative;margin:34px 0 58px}
+.track{display:flex;height:14px;gap:2px;border-radius:7px;overflow:hidden}
+.seg{background:color-mix(in srgb,var(--gc) calc(14% + var(--i)*14%),var(--surface))}
+.mark{position:absolute;top:-6px;width:4px;height:26px;margin-left:-2px;border-radius:2px;background:var(--fg)}
+.mark b{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);font:600 12px var(--f-mono);background:var(--fg);color:var(--bg);padding:3px 6px;border-radius:6px;white-space:nowrap}
+.mark.l b{left:-2px;transform:none}.mark.r b{left:auto;right:-2px;transform:none}
+.tick{position:absolute;top:24px;transform:translateX(-50%);font:500 10px var(--f-mono);color:var(--muted)}
+.tick.sp{top:40px;color:var(--tax);font-weight:600;white-space:nowrap}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;margin:0;font-size:14px}
+dl.kv dt{color:var(--muted)}dl.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.hrow{padding:12px 0;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.hrow:last-child{border-bottom:0;padding-bottom:0}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hv{display:grid;grid-template-columns:44px auto 1fr;gap:10px;align-items:baseline;font-size:13.5px}
+.hv .hk{color:var(--muted)}.hv .idx{font:600 14px var(--f-mono)}.hv .dl{color:var(--muted);text-align:right}
+.empty{color:var(--muted);font-size:14px}
+details.card summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:28px}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::after{content:"+";font:500 20px var(--f-mono);color:var(--muted)}
+details[open].card summary::after{content:"−"}
+details.card .inner{margin-top:14px;display:grid;gap:14px}
+
+/* simulator */
+.slider{display:grid;gap:8px}
+.slider .top2{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.slider .top2 b{font:700 26px var(--f-disp);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:32px;accent-color:var(--c)}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.callout{border:1px dashed var(--line);border-radius:10px;padding:12px;font-size:13.5px;color:var(--muted)}
+.tgrid{display:grid;gap:8px}
+.trow{display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:center;font-size:14px}
+.trow small{display:block;color:var(--muted);font-size:12px}
+.trow input{min-height:40px;font-size:15px}
+.tg-h{font-weight:700;font-size:14px;margin:6px 0 2px}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);z-index:5;
+  padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.tabs-in{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:560px;margin:0 auto}
+.tabs a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;border-radius:10px;color:var(--muted);text-decoration:none;font:600 12px var(--f-body)}
+.tabs a svg{width:22px;height:22px}
+.tabs a[aria-current="page"]{background:var(--soft);color:var(--fg)}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div><h1>Contrôle Redal</h1><p>Usage domestique · grille Redal 2026</p></div>
+    <span id="sync" class="sync">Sur cet appareil</span>
+  </header>
+
+  <main>
+    <section id="v-facture" class="view"></section>
+
+    <section id="v-suivi" class="view" hidden>
+      <div class="card"><h2>Derniers index</h2><div id="lastIdx"></div></div>
+      <form class="card form" id="readForm" novalidate>
+        <h2 style="margin:0">Nouveau relevé</h2>
+        <div class="field"><label for="rDate">Date du relevé</label><input id="rDate" type="date"></div>
+        <div class="row2">
+          <div class="field"><label for="rEau">Index eau (m³)</label><input id="rEau" type="number" inputmode="decimal" step="any" min="0" placeholder="ex. 291"></div>
+          <div class="field"><label for="rElec">Index électricité (kWh)</label><input id="rElec" type="number" inputmode="decimal" step="any" min="0" placeholder="ex. 8190"></div>
+        </div>
+        <p id="rMsg" class="msg" role="status"></p>
+        <button class="btn" type="submit">Enregistrer le relevé</button>
+      </form>
+      <div id="analysis" class="view"></div>
+      <div class="card"><h2>Historique</h2><div id="history"></div></div>
+      <details class="card" id="refBox">
+        <summary>Point de départ des comparaisons</summary>
+        <div class="inner">
+          <p class="note" style="margin:0">Les relevés sont comparés à cette référence. Par défaut, c’est le relevé de la dernière facture Redal. Si vous relevez vos compteurs aujourd’hui pour repartir à zéro, saisissez-les ici.</p>
+          <div class="field"><label for="fDate">Date</label><input id="fDate" type="date"></div>
+          <div class="row2">
+            <div class="field"><label for="fEau">Index eau (m³)</label><input id="fEau" type="number" inputmode="decimal" step="any" min="0"></div>
+            <div class="field"><label for="fElec">Index électricité (kWh)</label><input id="fElec" type="number" inputmode="decimal" step="any" min="0"></div>
+          </div>
+          <p id="fMsg" class="msg" role="status"></p>
+          <button class="btn ghost" type="button" id="refSave">Enregistrer le point de départ</button>
+        </div>
+      </details>
+    </section>
+
+    <section id="v-simuler" class="view" hidden>
+      <div class="card form">
+        <h2 style="margin:0">Consommation à simuler</h2>
+        <div class="slider" style="--c:var(--elec)">
+          <div class="top2"><label for="sElec" style="font-weight:600">Électricité</label><b><span id="vElec">280</span> <small style="font:500 14px var(--f-body);color:var(--muted)">kWh</small></b></div>
+          <input id="sElec" type="range" min="0" max="600" step="1" value="280">
+          <p class="meta" id="trElec"></p>
+          <div class="presets">
+            <button class="btn ghost sm" type="button" data-preset="Elec:280">Facture (280)</button>
+            <button class="btn ghost sm" type="button" data-preset="Elec:310">Limite T4 (310)</button>
+            <button class="btn ghost sm" type="button" data-preset="Elec:200">Seuil TPPAN (200)</button>
+          </div>
+        </div>
+        <div class="slider" style="--c:var(--eau)">
+          <div class="top2"><label for="sEau" style="font-weight:600">Eau</label><b><span id="vEau">7</span> <small style="font:500 14px var(--f-body);color:var(--muted)">m³</small></b></div>
+          <input id="sEau" type="range" min="0" max="40" step="1" value="7">
+          <p class="meta" id="trEau"></p>
+          <div class="presets">
+            <button class="btn ghost sm" type="button" data-preset="Eau:7">Facture (7)</button>
+            <button class="btn ghost sm" type="button" data-preset="Eau:6">Tranche 1 (6)</button>
+            <button class="btn ghost sm" type="button" data-preset="Eau:12">Tranche 2 (12)</button>
+          </div>
+        </div>
+      </div>
+      <div id="simOut" class="view"></div>
+      <details class="card" id="tarBox">
+        <summary>Tarifs utilisés</summary>
+        <div class="inner">
+          <p class="note" style="margin:0">Grille tarifaire Redal en vigueur depuis le 1er janvier 2026, usage domestique, prix en DH hors TVA. Facturation progressive jusqu’à 150 kWh ou 12 m³ par mois, sélective au-delà (toute la consommation au tarif de la tranche atteinte). Modifiez un prix si la grille change.</p>
+          <div id="tarForm" class="tgrid"></div>
+          <button class="btn ghost" type="button" id="tarReset">Rétablir la grille 2026</button>
+        </div>
+      </details>
+    </section>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="tabs-in">
+    <a href="#facture" data-tab="facture"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Facture</a>
+    <a href="#suivi" data-tab="suivi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/><circle cx="12" cy="16" r="1"/></svg>Suivi</a>
+    <a href="#simuler" data-tab="simuler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 17h14"/><circle cx="9" cy="7" r="2.2" fill="var(--surface)"/><circle cx="15" cy="17" r="2.2" fill="var(--surface)"/></svg>Simuler</a>
+  </div>
+</nav>
+
+<script>
+(function(){
+'use strict';
+/*CORE*/
+const r2=x=>Math.round((x+Number.EPSILON)*100)/100;
+const nf=(n,d=2)=>Number(n).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pf=n=>String(n).replace('.',',');
+const qf=n=>pf(+Number(n).toFixed(2));
+const ix=v=>nf(v,v%1?2:0);
+const pd=s=>{const a=s.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2]);};
+const days=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const fd=s=>{const a=s.split('-');return a[2]+'/'+a[1]+'/'+a[0];};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const num=v=>Number(v)||0;
+
+const INVOICE={
+  from:'2026-01-08',to:'2026-02-06',due:'2026-02-21',total:448.15,
+  eau:{old:278,new:285,vol:7,total:43.38,oldDate:'2026-01-07',lines:[
+    {k:'Eau, tranche 1',q:6,pu:2.5535,m:15.32,t:'conso'},
+    {k:'Eau, tranche 2',q:1,pu:7.7392,m:7.74,t:'conso'},
+    {k:'Redevance fixe eau',m:8.55,t:'fixe'},
+    {k:'Assainissement, tranche 1',q:6,pu:0.8401,m:5.04,t:'conso'},
+    {k:'Assainissement, tranche 2',q:1,pu:1.7342,m:1.73,t:'conso'},
+    {k:'Redevance fixe assainissement',m:5.00,t:'fixe'},
+    {k:'TVA',m:0.00,t:'tax'}]},
+  elec:{old:7804,new:8084,vol:280,total:404.77,oldDate:'2026-01-07',lines:[
+    {k:'Consommation, tranche 4',q:280,pu:1.05684,m:295.92,t:'conso'},
+    {k:'TPPAN',m:41.00,t:'tax'},
+    {k:'Redevance fixe électricité',m:7.22,t:'fixe'},
+    {k:'TVA',m:60.63,t:'tax'}]}
+};
+const LIM={elec:[100,150,210,310,510,Infinity],eau:[6,12,20,35,Infinity]};
+const DEF={
+  elec:{t:[0.79927,0.95064,0.95064,1.05684,1.23225,1.45167],fixe:7.22,tva:20,tppanRate:0.14643,tppanSeuil:200},
+  eau:{t:[2.5535,7.7392,7.7392,10.2039,11.0210],fixe:8.55,tva:0},
+  assain:{t:[0.8401,1.7342,1.7342,2.1989,2.1989],fixe:5}
+};
+const sel=(arr,t)=>r2(arr.filter(l=>l.t===t).reduce((s,l)=>s+l.m,0));
+
+function tIdx(v,lim){const c=Math.ceil(v-1e-9);const i=lim.findIndex(l=>c<=l);return i<0?lim.length-1:i;}
+function consoParts(v,lim){
+  const i=tIdx(v,lim);
+  if(i===0)return[{tr:0,q:v}];
+  if(i===1)return[{tr:0,q:lim[0]},{tr:1,q:v-lim[0]}];
+  return[{tr:i,q:v}];
+}
+function billLines(kind,v,tar){
+  const g=tar[kind],lim=LIM[kind==='elec'?'elec':'eau'];
+  const nm=kind==='elec'?'Consommation':kind==='eau'?'Eau':'Assainissement';
+  const lines=[],missing=[];
+  consoParts(v,lim).forEach(p=>{
+    const pu=g.t[p.tr];
+    if(pu==null||isNaN(pu)){missing.push((kind==='elec'?'Électricité':kind==='eau'?'Eau':'Assainissement')+' T'+(p.tr+1));return;}
+    lines.push({k:nm+', tranche '+(p.tr+1),q:p.q,pu:pu,m:r2(p.q*pu),t:'conso'});
+  });
+  return{lines,missing};
+}
+function billAll(kwh,m3,tar){
+  const e=billLines('elec',kwh,tar),w=billLines('eau',m3,tar),a=billLines('assain',m3,tar);
+  const missing=e.missing.concat(w.missing,a.missing);
+  const sum=l=>l.reduce((s,x)=>s+x.m,0);
+  const eC=r2(sum(e.lines));
+  const tppan=kwh>num(tar.elec.tppanSeuil)?r2(kwh*num(tar.elec.tppanRate)):0;
+  const eF=num(tar.elec.fixe);
+  const eT=r2((eC+eF)*num(tar.elec.tva)/100);
+  const eTot=r2(eC+tppan+eF+eT);
+  const eLines=e.lines.concat([{k:'TPPAN',m:tppan,t:'tax'},{k:'Redevance fixe électricité',m:eF,t:'fixe'},{k:'TVA ('+pf(num(tar.elec.tva))+' %)',m:eT,t:'tax'}]);
+  const wC=r2(sum(w.lines)+sum(a.lines));
+  const wF=r2(num(tar.eau.fixe)+num(tar.assain.fixe));
+  const wT=r2((wC+wF)*num(tar.eau.tva)/100);
+  const wTot=r2(wC+wF+wT);
+  const wLines=w.lines.concat([{k:'Redevance fixe eau',m:num(tar.eau.fixe),t:'fixe'}],a.lines,[{k:'Redevance fixe assainissement',m:num(tar.assain.fixe),t:'fixe'},{k:'TVA ('+pf(num(tar.eau.tva))+' %)',m:wT,t:'tax'}]);
+  const ok=missing.length===0;
+  return{missing,elec:{lines:eLines,total:ok?eTot:null},eau:{lines:wLines,total:ok?wTot:null},total:ok?r2(eTot+wTot):null};
+}
+function runChecks(){
+  const I=INVOICE,out=[];
+  const sum=a=>r2(a.reduce((s,l)=>s+l.m,0));
+  const add=(label,detail,pass)=>out.push({label,detail,pass});
+  add('Lignes eau et assainissement','somme '+nf(sum(I.eau.lines))+' · imprimé '+nf(I.eau.total),sum(I.eau.lines)===I.eau.total);
+  add('Lignes électricité','somme '+nf(sum(I.elec.lines))+' · imprimé '+nf(I.elec.total),sum(I.elec.lines)===I.elec.total);
+  const tt=r2(I.eau.total+I.elec.total);
+  add('Total à payer','eau + électricité = '+nf(tt)+' · imprimé '+nf(I.total),tt===I.total);
+  add('Volume d’eau facturé',nf(I.eau.new,0)+' − '+nf(I.eau.old,0)+' = '+nf(I.eau.new-I.eau.old,0)+' m³',I.eau.new-I.eau.old===I.eau.vol);
+  add('Volume d’électricité facturé',nf(I.elec.new,0)+' − '+nf(I.elec.old,0)+' = '+nf(I.elec.new-I.elec.old,0)+' kWh',I.elec.new-I.elec.old===I.elec.vol);
+  const prodOk=I.eau.lines.concat(I.elec.lines).filter(l=>l.q!=null).every(l=>r2(l.q*l.pu)===l.m);
+  add('Quantité × prix unitaire','chaque ligne recalculée au centime',prodOk);
+  const tvaC=r2((sel(I.elec.lines,'conso')+sel(I.elec.lines,'fixe'))*0.2);
+  const tvaI=I.elec.lines.find(l=>l.k==='TVA').m;
+  add('TVA électricité','20 % de (consommation + redevance fixe) = '+nf(tvaC)+' · imprimé '+nf(tvaI),tvaC===tvaI);
+  const b=billAll(I.elec.vol,I.eau.vol,DEF);
+  add('Recalcul complet par tranches','tranches, redevances, TPPAN et TVA : '+(b.total==null?'—':nf(b.total))+' · imprimé '+nf(I.total),b.total===I.total);
+  const dd=days(I.eau.oldDate,I.to);
+  add('Durée de la période',fd(I.eau.oldDate)+' → '+fd(I.to)+' = '+dd+' jours',dd===30);
+  return out;
+}
+/*ENDCORE*/
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayISO=()=>{const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');};
+const KEY='controle-redal-v1';
+const TICK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>';
+const CROSS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>';
+
+/* ---------- state ---------- */
+function fresh(){return{ref:{date:INVOICE.to,eau:INVOICE.eau.new,elec:INVOICE.elec.new},readings:[],tar:clone(DEF),paid:null};}
+const isNum=v=>v!==null&&v!==''&&v!==undefined&&isFinite(Number(v));
+function normalize(s){
+  const b=fresh();
+  if(!s||typeof s!=='object')return b;
+  if(s.ref&&/^\d{4}-\d{2}-\d{2}$/.test(String(s.ref.date))&&isNum(s.ref.eau)&&isNum(s.ref.elec))b.ref={date:s.ref.date,eau:Number(s.ref.eau),elec:Number(s.ref.elec)};
+  if(Array.isArray(s.readings))b.readings=s.readings.filter(r=>r&&/^\d{4}-\d{2}-\d{2}$/.test(String(r.date))&&(isNum(r.eau)||isNum(r.elec))).map(r=>({
+    id:String(r.id||r.date).replace(/[^\w-]/g,'').slice(0,24),date:r.date,eau:isNum(r.eau)?Number(r.eau):null,elec:isNum(r.elec)?Number(r.elec):null}));
+  if(s.tar&&typeof s.tar==='object')Object.keys(b.tar).forEach(g=>{
+    const src=s.tar[g];if(!src||typeof src!=='object')return;
+    Object.keys(b.tar[g]).forEach(k=>{
+      if(k==='t'){if(Array.isArray(src.t))b.tar[g].t=b.tar[g].t.map((d,i)=>isNum(src.t[i])?Number(src.t[i]):d);}
+      else if(isNum(src[k]))b.tar[g][k]=Number(src[k]);
+    });
+  });
+  b.paid=s.paid==='yes'||s.paid==='no'?s.paid:null;
+  return b;
+}
+let state=fresh();
+let docRef=null,saving=false,dirty=false,timer=null;
+const mirror=()=>{try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}};
+function setSync(k){
+  const el=$('#sync');
+  el.className='sync'+(k==='ok'?' ok':'');
+  el.textContent=k==='ok'?'Synchronisé':k==='slow'?'Connexion lente':k==='err'?'Non synchronisé':'Sur cet appareil';
+}
+function save(){mirror();dirty=true;clearTimeout(timer);timer=setTimeout(flush,500);}
+async function flush(){
+  if(!docRef||saving||!dirty)return;
+  saving=true;dirty=false;
+  try{await docRef.set(clone(state));setSync('ok');}catch(e){setSync('err');}
+  saving=false;
+  if(dirty)flush();
+}
+
+/* ---------- helpers ---------- */
+function points(k){
+  return[{date:state.ref.date,v:state.ref[k],ref:true}].concat(state.readings.filter(r=>r[k]!=null).map(r=>({date:r.date,v:r[k],id:r.id}))).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function prevPoint(k,date){const p=points(k).filter(x=>x.date<date);return p[p.length-1];}
+function periodStats(k){
+  const p=points(k),last=p[p.length-1];
+  if(last.ref)return null;
+  const d=days(state.ref.date,last.date),used=last.v-state.ref[k];
+  if(d<=0)return null;
+  return{last,d,used,perDay:used/d,proj:used/d*30};
+}
+function trLabel(kind,v){
+  const lim=LIM[kind==='elec'?'elec':'eau'],i=tIdx(v,lim),lo=i===0?0:lim[i-1]+1,hi=lim[i],u=kind==='elec'?'kWh':'m³';
+  return 'Tranche '+(i+1)+' ('+(hi===Infinity?lo+' '+u+' et plus':lo+'–'+hi+' '+u)+')';
+}
+const modeOf=(kind,v)=>Math.ceil(v-1e-9)<=(kind==='elec'?150:12)?'progressive':'sélective';
+function drum(v,kind){return'<span class="drum '+kind+'" aria-label="Index '+ix(v)+'">'+String(Math.floor(v)).padStart(5,'0').split('').map(d=>'<i>'+d+'</i>').join('')+'</span>';}
+function gauge(kind,val){
+  const isE=kind==='elec',lim=LIM[kind].slice(0,-1),max=isE?560:40,col=isE?'var(--elec)':'var(--eau)';
+  const b=[0].concat(lim,[max]);
+  let segs='';
+  for(let i=1;i<b.length;i++)segs+='<span class="seg" style="flex:'+(b[i]-b[i-1])+';--i:'+(i-1)+'"></span>';
+  const pos=Math.max(0,Math.min(100,val/max*100)),side=pos<12?'l':pos>88?'r':'';
+  let ticks=lim.map(v=>'<span class="tick" style="left:'+(v/max*100)+'%">'+v+'</span>').join('');
+  if(isE)ticks+='<span class="tick sp" style="left:'+(200/max*100)+'%">TPPAN 200</span>';
+  return'<div class="gauge" role="img" aria-label="'+qf(val)+(isE?' kWh':' m³')+' sur l’échelle des tranches" style="--gc:'+col+'"><div class="track">'+segs+'</div><span class="mark '+side+'" style="left:'+pos+'%"><b>'+qf(val)+'</b></span>'+ticks+'</div>';
+}
+function linesTable(lines,total,label){
+  const rows=lines.map(l=>'<tr><td>'+esc(l.k)+(l.q!=null?'<small>'+qf(l.q)+' × '+pf(l.pu)+'</small>':'')+'</td><td>'+nf(l.m)+'</td></tr>').join('');
+  return'<table class="lines"><tbody>'+rows+'<tr class="sum"><td>'+esc(label||'Total')+'</td><td>'+(total==null?'—':nf(total)+' DH')+'</td></tr></tbody></table>';
+}
+
+/* ---------- Facture ---------- */
+function renderFacture(){
+  const I=INVOICE;
+  const segs=[
+    {k:'Électricité (consommation)',v:sel(I.elec.lines,'conso'),c:'var(--elec)'},
+    {k:'Taxes (TVA et TPPAN)',v:r2(sel(I.elec.lines,'tax')+sel(I.eau.lines,'tax')),c:'var(--tax)'},
+    {k:'Eau et assainissement (consommation)',v:sel(I.eau.lines,'conso'),c:'var(--eau)'},
+    {k:'Redevances fixes',v:r2(sel(I.elec.lines,'fixe')+sel(I.eau.lines,'fixe')),c:'var(--fixe)'}
+  ];
+  const T=I.total,taxes=segs[1].v;
+  const e1=I.elec.lines[0],over=I.elec.vol-200,margin=310-I.elec.vol;
+  const w2=I.eau.lines[1],a2=I.eau.lines[4],w1=I.eau.lines[0],a1=I.eau.lines[3];
+  const t7=r2(w2.m+a2.m),t7low=r2(w1.pu+a1.pu);
+  const jump=r2(311*DEF.elec.t[4])-r2(310*DEF.elec.t[3]);
+  const s200=billAll(200,I.eau.vol,DEF),sav=r2(I.elec.total-s200.elec.total);
+  const ck=runChecks(),okN=ck.filter(c=>c.pass).length;
+  const pays=[['yes','Payée'],['no','À payer']].map(p=>'<button type="button" data-paid="'+p[0]+'" aria-pressed="'+(state.paid===p[0])+'">'+p[1]+'</button>').join('');
+  $('#v-facture').innerHTML=
+  '<div class="card"><p class="lbl" style="margin-bottom:4px">Total à payer</p>'+
+    '<p class="amount">'+nf(T)+' <span>DH</span></p>'+
+    '<p class="meta">Consommation du '+fd(I.from)+' au '+fd(I.to)+' · 30 jours</p>'+
+    '<div class="payrow"><span>Échéance <b>'+fd(I.due)+'</b></span><div class="pay" role="group" aria-label="Statut de paiement">'+pays+'</div></div></div>'+
+  '<div class="card"><h2>Où va l’argent</h2><div class="bar" role="img" aria-label="Répartition de la facture">'+
+    segs.map(s=>'<span style="flex:'+s.v+';background:'+s.c+'"></span>').join('')+'</div>'+
+    '<ul class="legend">'+segs.map(s=>'<li><i style="background:'+s.c+'"></i><span>'+s.k+'</span><b>'+nf(s.v)+'</b><span class="pc">'+nf(s.v/T*100,1)+' %</span></li>').join('')+'</ul>'+
+    '<p class="note">Électricité au total : '+nf(I.elec.total)+' DH, soit '+nf(I.elec.total/T*100,1)+' % de la facture.</p></div>'+
+  '<div class="card"><div class="svc-h"><h2 style="color:var(--eau)">Eau et assainissement</h2><span class="svc-tot">'+nf(I.eau.total)+' DH</span></div>'+
+    '<p class="svc-sub">Index '+ix(I.eau.old)+' → '+ix(I.eau.new)+' · '+I.eau.vol+' m³ · '+nf(I.eau.total/I.eau.vol,2)+' DH le m³ tout compris</p>'+
+    linesTable(I.eau.lines,I.eau.total,'Total eau')+
+    '<p class="note">Les 6 premiers m³ sont facturés en tranche 1, le 7e en tranche 2. La TVA est à 0,00 sur cette facture.</p></div>'+
+  '<div class="card"><div class="svc-h"><h2 style="color:var(--elec)">Électricité</h2><span class="svc-tot">'+nf(I.elec.total)+' DH</span></div>'+
+    '<p class="svc-sub">Index '+ix(I.elec.old)+' → '+ix(I.elec.new)+' · '+I.elec.vol+' kWh · '+nf(I.elec.total/I.elec.vol,3)+' DH le kWh tout compris</p>'+
+    linesTable(I.elec.lines,I.elec.total,'Total électricité')+
+    '<p class="note">Tous les kWh sont facturés au tarif de la tranche atteinte (ici T4, de 211 à 310 kWh). La TVA de 20 % porte sur la consommation et la redevance fixe, sans la TPPAN.</p></div>'+
+  '<div class="card"><h2>À surveiller</h2><ul class="watch">'+
+    '<li><span class="chip warn">TPPAN : '+nf(sel(I.elec.lines,'tax')-I.elec.lines[3].m)+' DH</span><span>Vous avez dépassé de '+over+' kWh le seuil de 200 kWh par mois, au-delà duquel cette taxe s’applique à toute la consommation.</span></li>'+
+    '<li><span class="chip warn">Marge de '+margin+' kWh</span><span>Il reste '+margin+' kWh avant la tranche 5 (311 kWh), soit '+nf(margin/30,1)+' kWh par jour sur 30 jours. Au-delà, tous les kWh passent au tarif T5 ('+pf(DEF.elec.t[4])+' au lieu de '+pf(DEF.elec.t[3])+') : le 311e kWh ajouterait '+nf(jump)+' DH avant TVA.</span></li>'+
+    '<li><span class="chip ok">Scénario 200 kWh : '+nf(s200.elec.total)+' DH</span><span>À 200 kWh (tranche 3, sans TPPAN), l’électricité coûterait '+nf(s200.elec.total)+' DH au lieu de '+nf(I.elec.total)+' DH, soit '+nf(sav)+' DH de moins pour la même période.</span></li>'+
+    '<li><span class="chip">Le 7e m³ coûte '+nf(t7)+' DH</span><span>Eau '+nf(w2.m)+' + assainissement '+nf(a2.m)+', contre '+nf(t7low)+' DH s’il restait en tranche 1. Rester à 6 m³ par mois évite ce surcoût.</span></li>'+
+    '<li><span class="chip">Taxes : '+nf(taxes)+' DH</span><span>'+nf(taxes/T*100,1)+' % de la facture est de la TVA et de la TPPAN.</span></li>'+
+  '</ul></div>'+
+  '<div class="card"><h2>Contrôles ('+okN+' sur '+ck.length+' concordants)</h2><ul class="checks">'+
+    ck.map(c=>'<li class="'+(c.pass?'':'bad')+'">'+(c.pass?TICK:CROSS)+'<span>'+esc(c.label)+'<small>'+esc(c.detail)+'</small></span></li>').join('')+'</ul></div>';
+}
+
+/* ---------- Suivi ---------- */
+function renderLast(){
+  const rows=[['eau','Eau','m³'],['elec','Électricité','kWh']].map(a=>{
+    const p=points(a[0]),l=p[p.length-1];
+    return'<div class="drums"><span class="who">'+a[1]+'<span class="src">'+(l.ref?'Relevé de référence du ':'Votre relevé du ')+fd(l.date)+' · '+a[2]+'</span></span>'+drum(l.v,a[0])+'</div>';
+  }).join('');
+  $('#lastIdx').innerHTML=rows;
+}
+function status(kind,v){
+  const c=Math.ceil(v-1e-9);
+  if(kind==='elec'){
+    if(c<=200)return{cls:'ok',txt:'Sous le seuil TPPAN de 200 kWh'};
+    if(c<=310)return{cls:'warn',txt:'TPPAN applicable'};
+    return{cls:'bad',txt:'Tranche 5 ou plus'};
+  }
+  if(c<=6)return{cls:'ok',txt:'Tranche 1, tarif le plus bas'};
+  if(c<=12)return{cls:'warn',txt:'Au-delà de 6 m³, tarif T2'};
+  return{cls:'bad',txt:'Au-delà de 12 m³ : tous les m³ au tarif de la tranche'};
+}
+function meterCard(kind){
+  const isE=kind==='elec',u=isE?'kWh':'m³',name=isE?'Électricité':'Eau',col=isE?'var(--elec)':'var(--eau)';
+  const st=periodStats(kind);
+  const v=st?st.proj:INVOICE[kind].vol;
+  const s=status(kind,v),tl=trLabel(kind,v);
+  const budgets=isE?[200,310]:[6,12];
+  let kv='';
+  if(st){
+    kv+='<dt>Depuis le '+fd(state.ref.date)+'</dt><dd>+'+qf(st.used)+' '+u+' en '+st.d+' j</dd>';
+    kv+='<dt>Rythme actuel</dt><dd>'+qf(st.perDay)+' '+u+'/j</dd>';
+  }else{
+    kv+='<dt>Dernière facture</dt><dd>'+INVOICE[kind].vol+' '+u+' en 30 j</dd>';
+    kv+='<dt>Rythme</dt><dd>'+qf(INVOICE[kind].vol/30)+' '+u+'/j</dd>';
+  }
+  kv+='<dt>Tranche</dt><dd>'+tl+'</dd><dt>Facturation</dt><dd>'+modeOf(kind,v)+'</dd>';
+  budgets.forEach(b=>{kv+='<dt>Pour rester à '+b+' '+u+'</dt><dd>'+qf(b/30)+' '+u+'/j</dd>';});
+  const warn=st&&st.d<7?'<p class="note">Moins de 7 jours de recul : la projection est peu fiable.</p>':'';
+  return'<div class="card" style="--c:'+col+'"><div class="mhead"><span class="dot"></span><h2 style="margin:0">'+name+'</h2></div>'+
+    '<p class="big">'+qf(v)+' <small>'+u+(st?' projetés sur 30 jours':' sur la dernière facture')+'</small></p>'+
+    gauge(kind,v)+'<span class="chip '+s.cls+'">'+s.txt+'</span>'+
+    '<dl class="kv" style="margin-top:14px">'+kv+'</dl>'+warn+'</div>';
+}
+function estimateCard(){
+  const sE=periodStats('elec'),sW=periodStats('eau');
+  if(!sE||!sW)return'<div class="card"><h2>Facture estimée</h2><p class="empty">Enregistrez un relevé des deux compteurs pour estimer la prochaine facture.</p></div>';
+  const kwh=Math.round(sE.proj),m3=Math.round(sW.proj),b=billAll(kwh,m3,state.tar);
+  if(b.total==null)return'<div class="card"><h2>Facture estimée</h2><p class="empty">Pour '+kwh+' kWh et '+m3+' m³, il manque : '+esc(b.missing.join(', '))+'. Renseignez ces tarifs dans l’onglet Simuler.</p></div>';
+  const d=r2(b.total-INVOICE.total);
+  return'<div class="card"><h2>Facture estimée sur 30 jours</h2><p class="amount">'+nf(b.total)+' <span>DH</span></p>'+
+    '<p class="meta">Pour '+kwh+' kWh et '+m3+' m³ · '+(d>=0?'+':'−')+nf(Math.abs(d))+' DH par rapport à la facture du '+fd(INVOICE.to)+'</p>'+
+    '<dl class="kv" style="margin-top:12px"><dt>Électricité</dt><dd>'+nf(b.elec.total)+' DH</dd><dt>Eau et assainissement</dt><dd>'+nf(b.eau.total)+' DH</dd></dl></div>';
+}
+let pendingDel=null;
+function renderHistory(){
+  const rs=state.readings.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!rs.length){$('#history').innerHTML='<p class="empty">Aucun relevé pour l’instant. Le premier sera comparé au relevé du '+fd(state.ref.date)+'.</p>';return;}
+  $('#history').innerHTML=rs.map(r=>{
+    const parts=['eau','elec'].map(k=>{
+      if(r[k]==null)return'';
+      const p=prevPoint(k,r.date),dv=r[k]-p.v,dd=days(p.date,r.date),u=k==='eau'?'m³':'kWh';
+      return'<div class="hv"><span class="hk">'+(k==='eau'?'Eau':'Élec.')+'</span><span class="idx">'+ix(r[k])+'</span><span class="dl">+'+qf(dv)+' '+u+' · '+qf(dv/dd)+' '+u+'/j</span></div>';
+    }).join('');
+    const arm=pendingDel===r.id;
+    return'<div class="hrow"><div class="hd"><b>'+esc(fd(r.date))+'</b><button type="button" class="btn ghost sm" data-del="'+esc(r.id)+'">'+(arm?'Confirmer la suppression':'Supprimer')+'</button></div>'+parts+'</div>';
+  }).join('');
+}
+function renderSuivi(){
+  renderLast();
+  $('#analysis').innerHTML=meterCard('elec')+meterCard('eau')+estimateCard();
+  renderHistory();
+  const act=document.activeElement;
+  [['#fDate',state.ref.date],['#fEau',state.ref.eau],['#fElec',state.ref.elec]].forEach(a=>{const el=$(a[0]);if(el!==act)el.value=a[1];});
+}
+function msg(sel,text,cls){const el=$(sel);el.textContent=text;el.className='msg'+(cls?' '+cls:'');}
+const pnum=v=>{v=String(v).trim().replace(',','.');return v===''||isNaN(+v)?null:+v;};
+function checkPoint(k,date,val){
+  const pts=points(k),lab=k==='eau'?'eau':'électricité';
+  if(pts.some(p=>p.date===date))return'Un relevé de '+lab+' existe déjà au '+fd(date)+'. Supprimez-le d’abord.';
+  const before=pts.filter(p=>p.date<date),after=pts.filter(p=>p.date>date);
+  if(!before.length)return'La date doit être postérieure au '+fd(state.ref.date)+'.';
+  const pv=before[before.length-1];
+  if(val<pv.v)return'L’index '+lab+' ('+ix(val)+') est inférieur à celui du '+fd(pv.date)+' ('+ix(pv.v)+').';
+  if(after.length&&val>after[0].v)return'L’index '+lab+' ('+ix(val)+') dépasse celui du '+fd(after[0].date)+' ('+ix(after[0].v)+').';
+  return null;
+}
+function onRead(e){
+  e.preventDefault();
+  const date=$('#rDate').value,eau=pnum($('#rEau').value),elec=pnum($('#rElec').value);
+  if(!date)return msg('#rMsg','Indiquez la date du relevé.','err');
+  if(eau==null&&elec==null)return msg('#rMsg','Saisissez au moins un index.','err');
+  if(eau!=null){const er=checkPoint('eau',date,eau);if(er)return msg('#rMsg',er,'err');}
+  if(elec!=null){const er=checkPoint('elec',date,elec);if(er)return msg('#rMsg',er,'err');}
+  state.readings.push({id:Date.now().toString(36),date:date,eau:eau,elec:elec});
+  state.readings.sort((a,b)=>a.date.localeCompare(b.date));
+  pendingDel=null;save();
+  $('#rEau').value='';$('#rElec').value='';
+  msg('#rMsg','Relevé enregistré.','good');
+  renderSuivi();
+}
+function onRef(){
+  const date=$('#fDate').value,eau=pnum($('#fEau').value),elec=pnum($('#fElec').value);
+  if(!date||eau==null||elec==null)return msg('#fMsg','Renseignez la date et les deux index.','err');
+  const before=state.readings.length;
+  state.ref={date:date,eau:eau,elec:elec};
+  state.readings=state.readings.filter(r=>r.date>date);
+  const dropped=before-state.readings.length;
+  pendingDel=null;save();
+  msg('#fMsg','Point de départ enregistré'+(dropped?' · '+dropped+' relevé'+(dropped>1?'s':'')+' antérieur'+(dropped>1?'s':'')+' retiré'+(dropped>1?'s':''):'')+'.','good');
+  renderSuivi();
+}
+
+/* ---------- Simuler ---------- */
+const sim={Elec:280,Eau:7};
+function renderSim(){
+  $('#vElec').textContent=sim.Elec;$('#vEau').textContent=sim.Eau;
+  $('#trElec').textContent=trLabel('elec',sim.Elec)+' · facturation '+modeOf('elec',sim.Elec);
+  $('#trEau').textContent=trLabel('eau',sim.Eau)+' · facturation '+modeOf('eau',sim.Eau);
+  const b=billAll(sim.Elec,sim.Eau,state.tar);
+  const d=b.total==null?null:r2(b.total-INVOICE.total);
+  let head;
+  if(b.total==null)head='<p class="amount">— <span>DH</span></p><div class="callout">Tarif manquant pour cette consommation : '+esc(b.missing.join(', '))+'. Saisissez-le dans « Tarifs utilisés » ci-dessous (grille de tarifs Redal).</div>';
+  else head='<p class="amount">'+nf(b.total)+' <span>DH</span></p><p class="meta">'+(d===0?'Identique à la facture du '+fd(INVOICE.to)+'.':(d>0?'+':'−')+nf(Math.abs(d))+' DH par rapport à la facture du '+fd(INVOICE.to)+' ('+nf(INVOICE.total)+' DH).')+'</p>';
+  const partial=l=>l.length?l:[];
+  $('#simOut').innerHTML=
+    '<div class="card"><p class="lbl" style="margin-bottom:4px">Facture estimée</p>'+head+'</div>'+
+    '<div class="card" style="--c:var(--elec)"><div class="svc-h"><h2 style="color:var(--elec)">Électricité</h2><span class="svc-tot">'+(b.elec.total==null?'—':nf(b.elec.total)+' DH')+'</span></div>'+linesTable(partial(b.elec.lines),b.elec.total,'Total électricité')+'</div>'+
+    '<div class="card"><div class="svc-h"><h2 style="color:var(--eau)">Eau et assainissement</h2><span class="svc-tot">'+(b.eau.total==null?'—':nf(b.eau.total)+' DH')+'</span></div>'+linesTable(partial(b.eau.lines),b.eau.total,'Total eau')+'</div>';
+}
+function setSim(k,v){
+  v=Math.max(0,Number(v)||0);sim[k]=v;
+  $('#s'+k).value=v;
+  renderSim();
+}
+const TGROUPS=[
+  {g:'elec',title:'Électricité (DH/kWh)',unit:'kWh',rows:['0–100','101–150','151–210','211–310','311–510','511 et plus']},
+  {g:'eau',title:'Eau (DH/m³)',unit:'m³',rows:['0–6','7–12','13–20','21–35','36 et plus']},
+  {g:'assain',title:'Assainissement (DH/m³)',unit:'m³',rows:['0–6','7–12','13–20','21–35','36 et plus']}
+];
+const TEXTRA=[
+  {g:'elec',k:'fixe',l:'Redevance fixe électricité (DH/mois)'},
+  {g:'elec',k:'tva',l:'TVA électricité (%)'},
+  {g:'elec',k:'tppanRate',l:'TPPAN (DH/kWh), déduit de la facture'},
+  {g:'elec',k:'tppanSeuil',l:'Seuil TPPAN (kWh/mois)'},
+  {g:'eau',k:'fixe',l:'Redevance fixe eau (DH/mois)'},
+  {g:'assain',k:'fixe',l:'Redevance fixe assainissement (DH/mois)'},
+  {g:'eau',k:'tva',l:'TVA eau et assainissement (%)'}
+];
+function buildTarifs(){
+  let h='';
+  TGROUPS.forEach(G=>{
+    h+='<div class="tg-h">'+G.title+'</div>';
+    G.rows.forEach((r,i)=>{h+='<div class="trow"><label for="t-'+G.g+'-'+i+'">T'+(i+1)+'<small>'+r+' '+G.unit+'</small></label><input id="t-'+G.g+'-'+i+'" type="number" inputmode="decimal" step="any" min="0" data-g="'+G.g+'" data-i="'+i+'"></div>';});
+  });
+  h+='<div class="tg-h">Redevances, taxes et seuil</div>';
+  TEXTRA.forEach(x=>{h+='<div class="trow"><label for="x-'+x.g+'-'+x.k+'">'+x.l+'</label><input id="x-'+x.g+'-'+x.k+'" type="number" inputmode="decimal" step="any" min="0" data-g="'+x.g+'" data-k="'+x.k+'"></div>';});
+  $('#tarForm').innerHTML=h;
+}
+function fillTarifs(){
+  const act=document.activeElement;
+  document.querySelectorAll('#tarForm input').forEach(el=>{
+    if(el===act)return;
+    const g=el.dataset.g,v=el.dataset.i!==undefined?state.tar[g].t[+el.dataset.i]:state.tar[g][el.dataset.k];
+    el.value=v==null?'':String(v);
+  });
+}
+function onTar(e){
+  const el=e.target;if(!el.dataset||!el.dataset.g)return;
+  const v=pnum(el.value),g=el.dataset.g;
+  if(el.dataset.i!==undefined)state.tar[g].t[+el.dataset.i]=v==null?DEF[g].t[+el.dataset.i]:v;
+  else state.tar[g][el.dataset.k]=v==null?DEF[g][el.dataset.k]:v;
+  save();renderSim();renderSuivi();
+}
+
+/* ---------- routing and events ---------- */
+const VIEWS=['facture','suivi','simuler'];
+function route(){
+  const h=(location.hash||'#facture').slice(1),name=VIEWS.indexOf(h)>=0?h:'facture';
+  VIEWS.forEach(v=>{$('#v-'+v).hidden=v!==name;});
+  document.querySelectorAll('.tabs a').forEach(a=>{if(a.dataset.tab===name)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  window.scrollTo(0,0);
+}
+function renderAll(){renderFacture();renderSuivi();renderSim();fillTarifs();}
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.paid){state.paid=state.paid===t.dataset.paid?null:t.dataset.paid;save();renderFacture();}
+  else if(t.dataset.del){
+    if(pendingDel===t.dataset.del){state.readings=state.readings.filter(r=>r.id!==t.dataset.del);pendingDel=null;save();renderSuivi();}
+    else{pendingDel=t.dataset.del;renderHistory();}
+  }
+  else if(t.dataset.preset){const a=t.dataset.preset.split(':');setSim(a[0],+a[1]);}
+});
+$('#readForm').addEventListener('submit',onRead);
+$('#refSave').addEventListener('click',onRef);
+$('#sElec').addEventListener('input',e=>setSim('Elec',e.target.value));
+$('#sEau').addEventListener('input',e=>setSim('Eau',e.target.value));
+$('#tarForm').addEventListener('change',onTar);
+$('#tarReset').addEventListener('click',()=>{state.tar=clone(DEF);save();fillTarifs();renderSim();renderSuivi();});
+window.addEventListener('hashchange',route);
+
+(async function init(){
+  try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s)state=normalize(s);}catch(e){}
+  $('#rDate').value=todayISO();
+  buildTarifs();renderAll();route();setSync('local');
+  let db=null;
+  try{db=window.claude&&window.claude.use?await window.claude.use('db'):null;}catch(e){db=null;}
+  if(!db)return;
+  docRef=db.doc('app/state');
+  const slow=setTimeout(()=>setSync('slow'),10000);
+  docRef.onSnapshot(snap=>{
+    if(!snap.metadata.fromCache)clearTimeout(slow);
+    if(snap.exists){
+      if(!saving&&!dirty&&!snap.metadata.hasPendingWrites){state=normalize(snap.data());mirror();renderAll();}
+      setSync('ok');
+    }else if(!snap.metadata.fromCache){
+      setSync('ok');
+      if(JSON.stringify(state)!==JSON.stringify(fresh()))dirty=true;
+    }
+    if(dirty&&!snap.metadata.fromCache)flush();
+  },()=>setSync('err'));
+})();
+})();
+</script>
+
+</body></html>
