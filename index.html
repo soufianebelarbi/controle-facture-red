@@ -124,6 +124,8 @@ details.card .inner{margin-top:14px;display:grid;gap:14px}
 .slider{display:grid;gap:8px}
 .slider .top2{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .slider .top2 b{font:700 26px var(--f-disp);font-variant-numeric:tabular-nums}
+.numwrap{display:inline-flex;align-items:baseline;gap:6px}
+input.numin[type=number]{width:7ch;min-height:48px;font:700 26px var(--f-disp);text-align:right;padding:4px 10px;border:1.5px solid var(--c);border-radius:10px;background:var(--bg);color:var(--fg)}
 input[type=range]{width:100%;height:32px;accent-color:var(--c)}
 .presets{display:flex;flex-wrap:wrap;gap:8px}
 .callout{border:1px dashed var(--line);border-radius:10px;padding:12px;font-size:13.5px;color:var(--muted)}
@@ -185,7 +187,7 @@ input[type=range]{width:100%;height:32px;accent-color:var(--c)}
       <div class="card form">
         <h2 style="margin:0">Consommation à simuler</h2>
         <div class="slider" style="--c:var(--elec)">
-          <div class="top2"><label for="sElec" style="font-weight:600">Électricité</label><b><span id="vElec">280</span> <small style="font:500 14px var(--f-body);color:var(--muted)">kWh</small></b></div>
+          <div class="top2"><label for="sElec" style="font-weight:600">Électricité</label><b class="numwrap"><input id="nElec" class="numin" type="number" inputmode="decimal" step="any" min="0" value="280" aria-label="Consommation d’électricité en kWh"> <small style="font:500 14px var(--f-body);color:var(--muted)">kWh</small></b></div>
           <input id="sElec" type="range" min="0" max="600" step="1" value="280">
           <p class="meta" id="trElec"></p>
           <div class="presets">
@@ -195,7 +197,7 @@ input[type=range]{width:100%;height:32px;accent-color:var(--c)}
           </div>
         </div>
         <div class="slider" style="--c:var(--eau)">
-          <div class="top2"><label for="sEau" style="font-weight:600">Eau</label><b><span id="vEau">7</span> <small style="font:500 14px var(--f-body);color:var(--muted)">m³</small></b></div>
+          <div class="top2"><label for="sEau" style="font-weight:600">Eau</label><b class="numwrap"><input id="nEau" class="numin" type="number" inputmode="decimal" step="any" min="0" value="7" aria-label="Consommation d’eau en m³"> <small style="font:500 14px var(--f-body);color:var(--muted)">m³</small></b></div>
           <input id="sEau" type="range" min="0" max="40" step="1" value="7">
           <p class="meta" id="trEau"></p>
           <div class="presets">
@@ -558,7 +560,7 @@ function onRef(){
 /* ---------- Simuler ---------- */
 const sim={Elec:280,Eau:7};
 function renderSim(){
-  $('#vElec').textContent=sim.Elec;$('#vEau').textContent=sim.Eau;
+  ['Elec','Eau'].forEach(k=>{const el=$('#n'+k);if(document.activeElement!==el)el.value=sim[k];});
   $('#trElec').textContent=trLabel('elec',sim.Elec)+' · facturation '+modeOf('elec',sim.Elec);
   $('#trEau').textContent=trLabel('eau',sim.Eau)+' · facturation '+modeOf('eau',sim.Eau);
   const b=billAll(sim.Elec,sim.Eau,state.tar);
@@ -640,6 +642,12 @@ $('#readForm').addEventListener('submit',onRead);
 $('#refSave').addEventListener('click',onRef);
 $('#sElec').addEventListener('input',e=>setSim('Elec',e.target.value));
 $('#sEau').addEventListener('input',e=>setSim('Eau',e.target.value));
+['Elec','Eau'].forEach(k=>{
+  const el=$('#n'+k);
+  el.addEventListener('input',()=>{const v=Math.max(0,pnum(el.value)||0);sim[k]=v;$('#s'+k).value=v;renderSim();});
+  el.addEventListener('focus',()=>el.select());
+  el.addEventListener('blur',()=>{el.value=sim[k];});
+});
 $('#tarForm').addEventListener('change',onTar);
 $('#tarReset').addEventListener('click',()=>{state.tar=clone(DEF);save();fillTarifs();renderSim();renderSuivi();});
 window.addEventListener('hashchange',route);
